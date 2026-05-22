@@ -2,22 +2,23 @@ import streamlit as st
 
 st.set_page_config(page_title="Poker Action Score Calculator", page_icon="🎰", layout="centered")
 
-# ---- Final step-up model: weights and per-game-type config ----
-W_VPIP, W_PFR, W_RATIO = 0.50, 0.45, 0.05
+# ---- Weights (original): VPIP 40%, PFR 45%, aggression ratio 15% ----
+W_VPIP, W_PFR, W_RATIO = 0.40, 0.45, 0.15
 
+# ---- Per-game-type benchmarks & cutoffs (calibrated to ~60/25/15) ----
 CONFIG = {
-    "NLH (Texas)": {"V": 31, "P": 21, "C1": 100, "C2": 117},
-    "4PLO":        {"V": 42, "P": 21, "C1": 98,  "C2": 135},
-    "5PLO":        {"V": 47, "P": 22, "C1": 98,  "C2": 138},
-    "6PLO":        {"V": 57, "P": 26, "C1": 97,  "C2": 137},
+    "NLH (Texas)": {"V": 31, "P": 21, "C1": 97, "C2": 110},
+    "4PLO":        {"V": 42, "P": 21, "C1": 93, "C2": 126},
+    "5PLO":        {"V": 47, "P": 22, "C1": 93, "C2": 129},
+    "6PLO":        {"V": 57, "P": 26, "C1": 92, "C2": 129},
 }
 
 # Approx VPIP/PFR needed to reach each tier (typical aggression ratio per game)
 TIER_RANGES = {
-    "NLH (Texas)": {"t2": (32, 21), "t3": (37, 25)},
+    "NLH (Texas)": {"t2": (32, 21), "t3": (36, 25)},
     "4PLO":        {"t2": (42, 21), "t3": (59, 29)},
-    "5PLO":        {"t2": (47, 22), "t3": (67, 31)},
-    "6PLO":        {"t2": (57, 26), "t3": (81, 37)},
+    "5PLO":        {"t2": (48, 22), "t3": (67, 32)},
+    "6PLO":        {"t2": (57, 26), "t3": (82, 37)},
 }
 
 def compute_score(vpip, pfr, cfg):
@@ -38,7 +39,7 @@ def tier_of(score, cfg):
         return 3, "Action", 20, "🟡", "🚀"
 
 st.title("🎰 Poker Action Score Calculator")
-st.markdown("Rewards players for **stepping up their action** — playing more hands and raising more. "
+st.markdown("Rewards players for **bringing more action** — playing hands and raising. "
             "Higher Action Score → higher rakeback tier.")
 st.markdown("---")
 
@@ -52,7 +53,7 @@ with st.sidebar:
           + {W_RATIO:.2f} × (PFR/VPIP)] × 100
     ```
 
-    **Weights** (tilted to volume so playing more hands raises the score):
+    **Weights:**
     - {int(W_VPIP*100)}% — playing hands (VPIP)
     - {int(W_PFR*100)}% — raising (PFR)
     - {int(W_RATIO*100)}% — aggression ratio
@@ -103,7 +104,6 @@ with c:
 
 st.markdown(f"### {tcolor} **Tier {tier}: {tier_name}** — {rakeback}% Rakeback")
 
-# Progress + how much more action to step up
 if tier == 1:
     prog = min(score / cfg["C1"], 1.0) if cfg["C1"] else 1.0
     st.progress(prog)
@@ -119,7 +119,6 @@ else:
     st.progress(1.0)
     st.caption("🏆 Top tier reached! Maximum action rakeback.")
 
-# Score breakdown
 st.markdown("---")
 st.subheader("🔍 Score Breakdown")
 with st.expander("See the math step-by-step", expanded=True):
@@ -136,7 +135,6 @@ with st.expander("See the math step-by-step", expanded=True):
         "Contribution": [f"{W_VPIP*vr:.3f}", f"{W_PFR*pr:.3f}", f"{W_RATIO*ar:.3f}", f"{score:.1f}"],
     })
 
-# Tier range reference for ALL games
 st.markdown("---")
 st.subheader("🪜 Tier Ranges by Game (step-up guide)")
 st.caption("Approximate VPIP/PFR to reach each tier, assuming a typical aggression ratio for the game. "
@@ -156,13 +154,12 @@ st.table({
     "Tier 3 (20%)": rows_t3,
 })
 
-# Player profile
 st.markdown("---")
 st.subheader("🎭 Player Profile")
 v_star = cfg["V"]
 if vpip < v_star * 0.8:
     arche = "🪨 **Tight / Below Benchmark**"
-    desc = "Plays fewer hands than the benchmark for this game. Stepping up VPIP/PFR will lift the tier."
+    desc = "Plays fewer hands than the benchmark for this game. More action will lift the tier."
 elif vpip < v_star * 1.2:
     arche = "🎯 **Around Benchmark**"
     desc = "Right around the typical active player for this game. A bit more action pushes into a higher tier."
